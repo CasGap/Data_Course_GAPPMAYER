@@ -171,6 +171,8 @@ iris[seq(2,150,2),]
 
 # 2.  Create a new object called iris_chr which is a copy of iris, except where every column is a character class
 
+dat <- iris
+
 dat$Sepal.Length <- as.character(dat$Sepal.Length)
 dat$Sepal.Width <- as.character(dat$Sepal.Width)
 dat$Petal.Length <- as.character(dat$Petal.Length)
@@ -188,6 +190,7 @@ Sepal.Area <- dat$Sepal.Length*dat$Sepal.Width
 # 4.  Add Sepal.Area to the iris data frame as a new column
 
 dat$Sepal.Area <- Sepal.Area
+dat
 
 # 5.  Create a new dataframe that is a subset of iris using only rows where Sepal.Area is greater than 20 
       # (name it big_area_iris)
