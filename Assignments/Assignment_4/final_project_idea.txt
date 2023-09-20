@@ -1,0 +1,19 @@
+Cassady Gappmayer
+Final Project Idea
+1. Describe your idea for a data analysis final project.
+I want to create wordclouds that contain words that are commonly found accompanying a chosen word. I would like to do this using the same word in different languages so that I can compare the context of words across languages.
+
+2. Describe the sort of data you will use, potential sources, and what the data might look like.
+I found out Dr. Mark Davies was a professor of linguistics at BYU who made a bunch of corpora, which, from what I understand, are giant word banks. He has a corpus for modern English, Spanish, and Portuguese. 
+https://www.mark-davies.org - if you want to look at the corpora yourself
+I’ve been playing around with them. I am not sure exactly how to use them for this project, but I think they could work. There was a magazine article I looked through where someone made a little graphic using two of his English corpora from different time periods showing what words were used in connection with the word ‘women’:
+https://magazine.byu.edu/article/big-lang-at-byu/
+I thought this was interesting, and I think I could do something like it with the three different languages he has corpora for. It would give some insight into the context of a word within cultures that speak each of the languages.
+
+3. (If you already have data, skip this task) Create fake data that simulates what your final project data set might look like. Preferrably a csv file.
+I don’t think I will need any additional data for the project, but I will have to figure out how to put it in a manageable form. I made a simple csv file. The nice thing is that the neighboring words (collocates) are already identified and designated a number showing how frequently each word appears within 4 words of the word I search. They are also organized into nouns, adverbs, and adjectives. Words such as “a”, “the”, “be”, “to” - that don’t really mean anything are filtered out.
+
+4. Generate a plot (using ggplot) using your real or fake data showing at least one expected result.
+*Sorry it looks funky. I still don’t understand out how to put the columns in descending order.
+The plot shows 15 of the most common neighboring words for the word ‘family’ in English and how frequently each word is within 4 words of the word ‘family’.
+If I made a wordcloud, the words that appear more frequently would be bigger. I would also have to make it so viewers can see the English, Spanish, and Portuguese versions in a way that they can compare them. I would also have to translate all the words to English which might be tricky. If the language idea doesn’t work out, I could compare English in the past to current English like the pink graphic above.
