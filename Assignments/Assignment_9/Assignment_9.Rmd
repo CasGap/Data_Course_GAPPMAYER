@@ -1,44 +1,338 @@
 ---
-output: 
-html_document:
-  number_sections=TRUE
-pagetitle: Assignment_9
+title: "Assignment_9"
+output: html_document
 ---
-
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# **Assignment 9**
+### Model Exploration and Interpretation to Predict Graduate School Admission
 
-In this assignment, you will use R (within R-Studio) to:
-  
-+ Load and clean a real data set
-+ Conduct exploratory analyses, including informative figures
-+ Build and test appropriate models
-+ Draw conclusions about your data
-+ Combine all of the above into a well-documented R-Markdown report and export (knit) it into an HTML file
+First, setting up the packages I will use.
+```{r message=FALSE,warning=FALSE}
+library(tidyverse)
+library(modelr)
+library(easystats)
+library(MASS)
+library(viridis)
+```
 
-**All file paths should be relative, starting from *your* Assignment_9 directory!!**
+Taking a look at the data:
+```{r warning=FALSE,message=FALSE}
+df <- read.csv("../Data/GradSchool_Admissions.csv")
+glimpse(df)
+```
 
-**This means that you need to create a new R-Project named "Assignment_9.Rproj" in your Assignment_9 directory, and work from scripts within that.**
+Here is the distribution of GRE scores and grouped GPAs for the sample group.
+```{r warning=FALSE,message=FALSE,fig.show='hold',out.width = "50%"}
+df %>% 
+  ggplot(aes(x=gre)) +
+  geom_bar() +
+  theme_bw()
+gpas <- df$gpa
+bins <- seq(1.0, 4.0, by = 0.1)
+gpa_groups <- cut(gpas, breaks = bins, include.lowest = TRUE, right = FALSE)
+df %>% 
+  ggplot(aes(x=gpa_groups)) +
+  geom_bar() +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+A plot of all the data:
+```{r warning=FALSE,message=FALSE,fig.align='center'}
+df %>% 
+  ggplot(aes(x=gre,y=gpa,color=factor(admit))) +
+  geom_point() +
+  facet_wrap(~rank,scales = 'free') +
+  theme_bw()
+```
+
+Acceptance rates look scattered. Let's see if there are meaningful correlations to be aware of.
+
+```{r warning=FALSE,message=FALSE,fig.align='center'}
+df %>% 
+  filter(admit == 1) %>% 
+  ggplot(aes(x=gre,y=gpa)) +
+  geom_point() +
+  facet_wrap(~rank,scales = 'free') +
+  geom_smooth(method='lm',se=FALSE) +
+  ggtitle("Applicants Admitted") +
+  theme_bw()
+df %>% 
+  filter(admit == 0) %>% 
+  ggplot(aes(x=gre,y=gpa)) +
+  geom_point() +
+  facet_wrap(~rank,scales = 'free') +
+  geom_smooth(method='lm',se=FALSE) +
+  ggtitle("Applicants Not Admitted") +
+  theme_bw()
+```
+
+Looks like there is a positive correlation between GPA and GRE scores, but this is true whether or not the student is admitted, so it won't help much for predicting admittance.
+
+We can get a better idea of how GPA influences admission.
+```{r warning=FALSE,message=FALSE,fig.show='hold',out.width = "50%"}
+df$admit <- as.character(df$admit)
+df %>% 
+  ggplot(aes(x=gpa,color=admit)) +
+  geom_density() +
+  facet_wrap(~rank) +
+  theme_bw() +
+  theme(legend.position = 'none')
+df %>% 
+  group_by(rank,admit) %>% 
+  summarize(mean_gpa = mean(gpa)) %>% 
+  ggplot(aes(x=rank,y=mean_gpa)) +
+  geom_col(aes(fill=admit),position = 'dodge') +
+  theme_minimal()
+```
+
+```{r warning=FALSE,message=FALSE}
+df %>% 
+  group_by(rank,admit) %>% 
+  summarize(mean_gpa = mean(gpa))
+```
+
+GPA is higher on average for students that were admitted
+
+As are GRE Scores.
+```{r warning=FALSE,message=FALSE,fig.show='hold',out.width = "50%"}
+df %>% 
+  ggplot(aes(x=gre,color=admit)) +
+  geom_density() +
+  facet_wrap(~rank) +
+  theme_bw() +
+  theme(legend.position = 'none')
+df %>% 
+  group_by(rank,admit) %>% 
+  summarize(mean_gre = mean(gre)) %>% 
+  ggplot(aes(x=rank,y=mean_gre)) +
+  geom_col(aes(fill=admit),position = 'dodge') +
+  theme_minimal()
+```
+
+```{r warning=FALSE,message=FALSE}
+df %>% 
+  group_by(rank,admit) %>% 
+  summarize(mean_gre = mean(gre))
+```
 
 
-## **For credit...**
+Now that we have a better idea of what is going on with our data, we can start preparing models.
+```{r message=FALSE,warning=FALSE}
+names(df)
+df$admit <- as.integer(df$admit)
+mod1 <- glm(data=df,
+            formula=admit ~ gpa + gre,
+            family='binomial')
+mod2 <- glm(data=df,
+            formula=admit ~ gpa + gre + rank,
+            family='binomial')
+mod3 <- glm(data=df,
+            formula=admit ~ gpa * gre * rank,
+            family='binomial')
+mod4 <- glm(data=df,
+            formula=admit ~ .^2,
+            family='binomial')
+mod5 <- glm(data=df,
+            formula=admit ~ gpa * gre + rank,
+            family= 'binomial')
+mod5 <- glm(data=df,
+                    formula=admit ~ gre + gpa * rank,
+                    family='binomial')
+```
 
-1.  Push a completed version of your Rproj and R-markdown file (details at end of this assignment) to GitHub
-2.  Your score will also depend on your analyses and presentation of your final report
+I will use the stepAIC function to see if there is a better model to investigate.
 
-____________
+```{r message=FALSE, warning=FALSE}
+step <- stepAIC(mod3)
+step$formula
+step <- stepAIC(mod4)
+step$formula
+```
 
-# Your tasks:
+Both formulas suggest this is the best model. Let's name it model 6 and compare all the models.
+```{r message=FALSE, warning=FALSE}
+mod6 <- glm(data=df,
+            formula=admit ~ gre + gpa + rank + gre:gpa,
+            family='binomial')
+compare_performance(mod6,mod5,mod4,mod3,mod2,mod1) %>% plot
+mod6$aic
+mod5$aic
+mod4$aic
+mod1$aic
+mod2$aic
+mod3$aic
+```
 
-+ Use the data set "/Data/GradSchool_Admissions.csv"
-+ You will explore and model the predictors of graduate school admission
-  - the "admit" column is coded as 1=success and 0=failure (that's binary, so model appropriately)
-  - the other columns are the GRE score, the GPA, and the rank of the undergraduate institution, where I is "top-tier."
-+ Document your data explorations, figures, and conclusions in a reproducible R-markdown report
-+ That means I want to see, in your html report, your process of model evaluation and selection. Here's an [example](https://gzahn.github.io/data-course/Repository/Assignments/Assignment_9/example.html){target="_blank"}
-+ Upload your **self-contained** R project, including knitted HTML report, to GitHub in *your* Assignment_9 directory
+Model 6 seems to be performing the best. It is relatively simple, so over-fitting is not a major concern for me.
 
+Let's add predictions from model 6 to our dataframe.
+```{r message=FALSE,warning=FALSE}
+df$predicted_prob <- predict(mod6, type = "response")
+```
+
+```{r message=FALSE,warning=FALSE,fig.show='hold',out.width = "50%"}
+df %>% 
+  ggplot(aes(x=predicted_prob,y=admit)) +
+  geom_point(shape=1,size=3) +
+  theme_bw()
+df %>% 
+  ggplot(aes(x=predicted_prob)) +
+  geom_density() +
+  theme_bw()
+```
+
+Because my model is binomial, it made predictions between 0 and 1. Most often students were not admitted. My model has prediction values mostly from about 0.15 to 0.4. It would be ideal if there were clear distributions of which predictions were closer to 0 (not admitted) and which were closer to 1 (admitted).
+
+```{r message=FALSE,warning=FALSE,fig.align='center'}
+ggplot(df, aes(x = predicted_prob, fill = factor(admit))) +
+  geom_density(alpha = 0.5) +
+  ggtitle("Predicted Probabilities by Admission Status") +
+  scale_fill_manual(values = c("blue", "red")) +
+  theme_minimal()
+```
+
+This plot shows that there is a relationship between lower predicted values and non-admission and higher predicted values and admission.
+
+```{r message=FALSE,warning=FALSE,fig.align='center'}
+bins <- seq(0, 1, by = 0.08)
+predicted_prob_groups <- cut(df$predicted_prob, breaks = bins, include.lowest = TRUE, right = FALSE)
+df %>% 
+  ggplot(aes(x=predicted_prob_groups,fill=factor(admit))) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ggtitle("Grouped Predicted Probabilities by Admission Status") +
+  theme_minimal()
+```
+
+It looks like in the groups with higher predicted values, there is a a higher percentage of applicants who were admitted.
+
+
+
+What if I predict that those with a predicted value of 0.44 or higher are admitted since that is about when the percentage of admitted applicants becomes higher than non-admitted applicants.
+
+```{r message=FALSE,warning=FALSE,fig.align='center'}
+df$predicted_admit <- ifelse(df$predicted_prob >= 0.44, 1, 0)
+predicted <- df$predicted_admit
+actual <- df$admit
+conf_matrix <- table(actual, predicted)
+conf_matrix_df <- as.data.frame.matrix(conf_matrix)
+conf_matrix_df <- cbind(Actual = rownames(conf_matrix_df), conf_matrix_df)
+conf_matrix_long <- gather(conf_matrix_df, key = "Predicted", value = "Frequency", -Actual)
+ggplot(conf_matrix_long, aes(x = Actual, y = Predicted, fill = Frequency)) +
+  geom_tile() +
+  geom_text(aes(label = Frequency), vjust = 1) +
+  scale_fill_viridis(name = "Frequency", option = "plasma") +
+  labs(x = "Actual", y = "Predicted") +
+  theme_minimal()
+```
+
+This did a good job of predicting applicants who were not admitted, but was wrong more often than right when predicting applicants who were admitted.
+
+What if I take the prediction groups I made and create a new column in the data frame that is a percentage of how many applications in each group were admitted. And make predictions based off that percentage.
+
+```{r message=FALSE,warning=FALSE,fig.align='center'}
+subset_0.0 <- df %>%
+  filter(predicted_prob >= 0.0 & predicted_prob <= 0.08)
+subset_0.08 <- df %>%
+  filter(predicted_prob >= 0.08 & predicted_prob <= 0.16)
+subset_0.16 <- df %>%
+  filter(predicted_prob >= 0.16 & predicted_prob <= 0.24)
+subset_0.24 <- df %>%
+  filter(predicted_prob >= 0.24 & predicted_prob <= 0.32)
+subset_0.32 <- df %>%
+  filter(predicted_prob >= 0.32 & predicted_prob <= 0.4)
+subset_0.4 <- df %>%
+  filter(predicted_prob >= 0.4 & predicted_prob <= 0.48)
+subset_0.48 <- df %>%
+  filter(predicted_prob >= 0.48 & predicted_prob <= 0.56)
+subset_0.56 <- df %>%
+  filter(predicted_prob >= 0.56 & predicted_prob <= 0.64)
+subset_0.64 <- df %>%
+  filter(predicted_prob >= 0.64 & predicted_prob <= 0.72)
+
+percentage_0.0 <- subset_0.0 %>% group_by(admit) %>%
+  summarize(percentage = n() / nrow(subset_0.0) * 100)
+percentage_0.08 <- subset_0.08 %>% group_by(admit) %>%
+  summarize(percentage = n() / nrow(subset_0.08) * 100)
+percentage_0.16 <- subset_0.16 %>% group_by(admit) %>%
+  summarize(percentage = n() / nrow(subset_0.16) * 100)
+percentage_0.24 <- subset_0.24 %>% group_by(admit) %>%
+  summarize(percentage = n() / nrow(subset_0.24) * 100)
+percentage_0.32 <- subset_0.32 %>% group_by(admit) %>%
+  summarize(percentage = n() / nrow(subset_0.32) * 100)
+percentage_0.4 <- subset_0.4 %>% group_by(admit) %>%
+  summarize(percentage = n() / nrow(subset_0.4) * 100)
+percentage_0.48 <- subset_0.48 %>% group_by(admit) %>%
+  summarize(percentage = n() / nrow(subset_0.48) * 100)
+percentage_0.56 <- subset_0.56 %>% group_by(admit) %>%
+  summarize(percentage = n() / nrow(subset_0.56) * 100)
+percentage_0.64 <- subset_0.64 %>% group_by(admit) %>%
+  summarize(percentage = n() / nrow(subset_0.64) * 100)
+
+df <- df %>%
+  mutate(percentage_column = case_when(
+    (predicted_prob >= 0.0 & predicted_prob <= 0.08) ~ percentage_0.0$percentage[1] * 0,
+    (predicted_prob > 0.08 & predicted_prob <= 0.16) ~ percentage_0.08$percentage[2] / 100,
+    (predicted_prob > 0.16 & predicted_prob <= 0.24) ~ percentage_0.16$percentage[2] / 100,
+    (predicted_prob > 0.24 & predicted_prob <= 0.32) ~ percentage_0.24$percentage[2] / 100,
+    (predicted_prob > 0.32 & predicted_prob <= 0.4) ~ percentage_0.32$percentage[2] / 100,
+    (predicted_prob > 0.4 & predicted_prob <= 0.48) ~ percentage_0.4$percentage[2] / 100,
+    (predicted_prob > 0.48 & predicted_prob <= 0.56) ~ percentage_0.48$percentage[2] / 100,
+    (predicted_prob > 0.56 & predicted_prob <= 0.64) ~ percentage_0.56$percentage[2] / 100,
+    (predicted_prob > 0.64 & predicted_prob <= 0.72) ~ percentage_0.64$percentage[1] / 100,
+    TRUE ~ NA_real_
+  ))
+
+df <- df %>% 
+  mutate(predicted_admit = rbinom(nrow(df), 1, percentage_column))
+
+predicted <- df$predicted_admit
+actual <- df$admit
+conf_matrix <- table(actual, predicted)
+conf_matrix_df <- as.data.frame.matrix(conf_matrix)
+conf_matrix_df <- cbind(Actual = rownames(conf_matrix_df), conf_matrix_df)
+conf_matrix_long <- gather(conf_matrix_df, key = "Predicted", value = "Frequency", -Actual)
+ggplot(conf_matrix_long, aes(x = Actual, y = Predicted, fill = Frequency)) +
+  geom_tile() +
+  geom_text(aes(label = Frequency), vjust = 1) +
+  scale_fill_viridis(name = "Frequency", option = "plasma") +
+  labs(x = "Actual", y = "Predicted") +
+  theme_minimal()
+```
+
+After all that work, my predictions are even worse.
+
+I found the best way to make predictions using my model 6 is to lower the cut off point for predictions to about 0.32 to 0.35.
+
+```{r message=FALSE,warning=FALSE,fig.align='center'}
+df$predicted_admit <- ifelse(df$predicted_prob >= 0.335, 1, 0)
+
+predicted <- df$predicted_admit
+actual <- df$admit
+conf_matrix <- table(actual, predicted)
+conf_matrix_df <- as.data.frame.matrix(conf_matrix)
+conf_matrix_df <- cbind(Actual = rownames(conf_matrix_df), conf_matrix_df)
+conf_matrix_long <- gather(conf_matrix_df, key = "Predicted", value = "Frequency", -Actual)
+ggplot(conf_matrix_long, aes(x = Actual, y = Predicted, fill = Frequency)) +
+  geom_tile() +
+  geom_text(aes(label = Frequency), vjust = 1) +
+  scale_fill_viridis(name = "Frequency", option = "plasma") +
+  labs(x = "Actual", y = "Predicted") +
+  theme_minimal()
+```
+
+Using the model this way is able to predict non-admission correctly about 58 percent of the time and admission correctly about 55 percent of the time. This is pretty bad, but it is the best I could seem to do.
+
+```{r message=FALSE,warning=FALSE}
+summary(mod6)
+```
+
+As GRE increases by 1, likelihood of admittance increases by 0.02.
+
+As GPA increases by 1, likelihood of admittance increases by 3.66.
+
+As rank increases by 1, likelihood of admittance decreases by 0.57.
