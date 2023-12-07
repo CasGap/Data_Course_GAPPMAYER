@@ -1,0 +1,144 @@
+---
+title: "Exam 4 (Exam 3 Redo)"
+output:
+  html_document:
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+<br>
+
+## Data Visualization and Analysis of Two Distinct Data Sets
+
+<br>
+
+---
+
+### Data Set 1: College Faculty Salaries in 1995
+
+<br>
+
+Displayed below is a plot showing the relationship between salary, position, and college tier as well as a summary of an ANOVA model that tests the influence of state, tier, and rank on salary without testing interactions between those predictors.
+
+```{r message=FALSE,warning=FALSE}
+library(tidyverse)
+library(broom)
+```
+
+```{r warning=FALSE,message=FALSE}
+df <- read.csv("FacultySalaries_1995.csv")
+assist <- df %>% 
+  pivot_longer(cols = AvgAssistProfSalary,
+               names_to = "Rank",
+               values_to = "Salary",
+               values_drop_na = TRUE) %>% 
+  mutate(Rank = Rank %>% str_remove("ProfSalary") %>% str_remove("Avg"))
+assoc <- df %>% 
+  pivot_longer(cols = AvgAssocProfSalary,
+               names_to = "Rank",
+               values_to = "Salary",
+               values_drop_na = TRUE) %>% 
+  mutate(Rank = Rank %>% str_remove("ProfSalary") %>% str_remove("Avg"))
+full <- df %>% 
+    pivot_longer(cols = AvgFullProfSalary,
+               names_to = "Rank",
+               values_to = "Salary",
+               values_drop_na = TRUE) %>% 
+  mutate(Rank = Rank %>% str_remove("ProfSalary") %>% str_remove("Avg"))
+join <- 
+  full %>% 
+  full_join(assoc) %>% 
+  full_join(assist)
+```
+
+::: columns
+::: column
+
+<br>
+
+##### **Plot Summary**
+
+While the plot to the right does not give us accurate salary values, it is valuable to see differences in salary between groups and the influence of predictors on salary.
+
+There is a visible increase in median salary with higher rank and college tiers prioritizing research. The plot also shows that there is more variance in the salary of full professors.
+
+<br><br><br>
+
+##### **ANOVA Test**
+
+An ANOVA is used to compare the means between multiple groups to determine statistically whether the predictors of salary are significant.
+
+*The results below show that state, tier, and rank have a p-value close to zero which means that each of these categories are significant predictors of professor salary.*
+
+```{r warning=FALSE,message=FALSE}
+aov(data = join,
+    formula = Salary ~ State + Tier + Rank) %>% 
+  summary()
+```
+:::
+::: column
+```{r warning=FALSE,message=FALSE,fig.dim=c(5,7)}
+join %>% 
+  filter(Tier != "VIIB") %>% 
+  ggplot(aes(x=Rank,y=Salary,fill=Rank)) +
+  geom_boxplot() +
+  facet_wrap(~Tier) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1)) +
+  ggtitle("Professor Salaries by College Tier and Rank")
+```
+:::
+:::
+
+<br>
+
+---
+
+### Data Set 2: Mass Spectroscopy of Chemical Concentrations in Cedar Trees that have Died due to Forest Fire
+
+<br>
+
+This data set was gathered by teams at Young Living Inc. and UVU Microbiology. Displayed below is a plot of the concentration of various chemicals in cedar trees that have burned. The curve represents chemical concentration over time in years.
+
+```{r warning=FALSE,message=FALSE}
+dat <- read.csv("Juniper_Oils.csv") %>% 
+  pivot_longer(cols = c("alpha.pinene","para.cymene","alpha.terpineol","cedr.9.ene","alpha.cedrene","beta.cedrene","cis.thujopsene","alpha.himachalene","beta.chamigrene","cuparene","compound.1","alpha.chamigrene","widdrol","cedrol","beta.acorenol","alpha.acorenol","gamma.eudesmol","beta.eudesmol","alpha.eudesmol","cedr.8.en.13.ol","cedr.8.en.15.ol","compound.2","thujopsenal"),
+               names_to = "ChemicalID",
+               values_to = "Concentration")
+```
+
+```{r warning=FALSE,message=FALSE,fig.align='center',fig.dim=c(9,6)}
+dat %>%
+  ggplot(aes(x=YearsSinceBurn,y=Concentration)) +
+  geom_smooth() +
+  facet_wrap(~ChemicalID,scales='free') +
+  theme_minimal() +
+  ggtitle("Chemical Concentrations in Cedar Trees After Fire") +
+  labs(x="Years Since Burn")
+```
+
+<br><br>
+
+##### **Chemicals Significantly Affected by Time**
+
+The plot above shows that there is a change in chemical concentrations over time, but to determine if any chemicals have a statistically significant change in concentration over time, we can model the affect and summarize the components of the model, including the p-values of predictors.
+
+Shown below are the results of linear modeling the affects of time on concentration of each chemical and the interactive terms between time in years and chemical type.
+
+*The five chemicals significantly affected (p-value < 0.5) by time were alpha cedrene, cedr-8-en-13-ol, cedrol, cis-thujopsene, and widdrol.*
+
+The interaction between time in years and cis-thujopsene also appears to be significant.
+
+```{r warning=FALSE,message=FALSE}
+model <- glm(data = dat, 
+             formula = Concentration ~ YearsSinceBurn * ChemicalID)
+significant_chemicals <- tidy(model) %>%
+  filter(p.value < 0.05) %>%
+  mutate(term = gsub("ChemicalID", "", term)) %>% 
+  print
+```
+
+<br>
