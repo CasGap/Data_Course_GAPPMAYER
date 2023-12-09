@@ -1,0 +1,277 @@
+---
+title: "Context of Word Use from 1820-2010"
+output: rmdformats::readthedown
+css: "styles.css"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r message=FALSE,warning=FALSE}
+library(tidyverse)
+library(readxl)
+library(ggwordcloud)
+library(knitr)
+```
+
+```{r warning=FALSE,message=FALSE}
+happiness <- read_excel("word_use.xlsx", sheet="happiness") %>% 
+  mutate(word = "happiness")
+courage <- read_excel("word_use.xlsx", sheet="courage") %>% 
+  mutate(word = "courage")
+health <- read_excel("word_use.xlsx", sheet="health") %>% 
+  mutate(word = "health")
+identity <- read_excel("word_use.xlsx", sheet="identity") %>% 
+  mutate(word = "identity")
+money <- read_excel("word_use.xlsx", sheet="money") %>% 
+  mutate(word = "money")
+
+df <- 
+  happiness %>% 
+  full_join(courage) %>%
+  full_join(health) %>%
+  full_join(money) %>%
+  full_join(identity)
+
+df <- df[, 1:31] %>% 
+  pivot_longer(cols = starts_with(c("18","19","20")),
+               names_to = "decade",
+               values_to = "frequency",
+               values_drop_na = TRUE) 
+colnames(df) <- c("collocate_number", "delete", "delete", "collocate","number_appearances","delete","delete","total","percent","mi","word","decade","frequency")
+
+df <- select(df, -delete)
+
+df$decade_group <- cut(as.numeric(df$decade), breaks = seq(1820, 2060, by = 50), labels = FALSE, right = FALSE)
+
+df <- df %>% mutate(decade_group = recode(decade_group, '1' = '1820-1860', '2' = '1870-1910', '3' = '1920-1960', '4' =  '1970-2010' ))
+
+happiness <- df %>% 
+  filter(word == "happiness") %>% 
+  group_by(collocate,decade_group) %>% 
+  summarize(avg_frequency = mean(frequency))
+
+identity <- df %>% 
+  filter(word == "identity") %>% 
+  group_by(collocate,decade_group) %>% 
+  summarize(avg_frequency = mean(frequency))
+
+health <- df %>% 
+  filter(word == "health") %>% 
+  group_by(collocate,decade_group) %>% 
+  summarize(avg_frequency = mean(frequency))
+
+money <- df %>% 
+  filter(word == "money") %>% 
+  group_by(collocate,decade_group) %>% 
+  summarize(avg_frequency = mean(frequency))
+```
+
+## Introduction
+
+All of the data used in this project came from the Corpus of Historical American English created by Mark Davies. The corpus contains over 475 million words over the decades of 1820 to 2010.
+
+This chart is included in the information provided on the Corpus of Historical American English website. The authors stress that a goal of the corpus is to be balanced when considering the genres and type of texts included.
+
+```{r warning=FALSE,message=FALSE}
+df_chart <- read_excel("word_use.xlsx", sheet = "sources")
+kable(df_chart, format = "html")
+```
+
+<br>
+
+These are the main five words that I will be discussing in this report: happiness, courage, health, identity, and money. Each line is a collocate (a word that comes within four words of the word I am investigating). I have included the top three collocates in each plot for visual simplicity.
+
+```{r warning=FALSE,message=FALSE,fig.align='center',fig.dim=c(9,6)}
+df %>% 
+  filter(collocate_number <= 3) %>% 
+  ggplot(aes(x=decade,y=frequency,color=factor(collocate_number))) +
+  geom_line(aes(group=collocate)) +
+  facet_wrap(~word,scales='free') +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size =6)) +
+  theme(legend.position="none")
+```
+
+<br>
+
+I will also use word clouds in my data analysis. Word clouds show frequency through size which is not the most accurate way to display data, but this technique allows us to see what each collocate is rather than only its numerical frequency. This will help us visualize each collocate and its relative frequency of occurrence in connection with the word we are interested in. The bigger the collocate appears, the more frequently it is used within four words of the word of interest.
+
+<br>
+
+## Happiness
+
+I was interested in getting a better look at the word happiness because its use appeared to decrease over the 200 years of data.
+
+```{r warning=FALSE,message=FALSE,fig.align='center',out.width = "75%"}
+df %>% 
+  filter(word == "happiness") %>% 
+  filter(collocate_number <= 3) %>% 
+  ggplot(aes(x=decade,y=frequency,color=factor(collocate_number))) +
+  geom_line(aes(group=collocate)) +
+  facet_wrap(~word) +
+  theme_classic() +
+  theme(legend.position="none")
+```
+
+<br>
+
+As we can see, there are less occurrences of words used in context with the word happiness over time. One collocate that stood out to me was collective. The word collective is one of the main words used in the last 50 years and was not used frequently before then.
+
+```{r warning=FALSE,message=FALSE}
+happiness %>% 
+  ggplot(aes(label = collocate, size = avg_frequency)) + 
+  geom_text_wordcloud() +
+  facet_wrap(~ decade_group, ncol = 4, scales = "free_x") +
+  theme_linedraw()
+```
+
+<br>
+
+## Courage
+
+I saw that one word increased dramatically in relation to the word courage in 2010. I was interested in finding out which word it was.
+
+```{r warning=FALSE,message=FALSE,fig.align='center',out.width = "75%"}
+df %>% 
+  filter(word == "courage") %>% 
+  filter(collocate_number <= 3) %>% 
+  ggplot(aes(x=decade,y=frequency,color=factor(collocate_number))) +
+  geom_line(aes(group=collocate)) +
+  facet_wrap(~word) +
+  theme_classic() +
+  theme(legend.position="none")
+```
+
+<br>
+
+The word was moral. I would guess this came from the phrase "moral courage" which apparently was used more in 2010 than before.
+
+```{r warning=FALSE,message=FALSE}
+courage_chart <- df %>% 
+  select(word,frequency,collocate,decade) %>% 
+  filter(word == "courage") %>% 
+  filter(frequency > 50)
+kable(courage_chart, format = "html")
+```
+
+<br>
+
+## Health
+
+From the plot of the word health, we can see that a few words correlated to the word health greatly increased after around the 1980s.
+
+```{r warning=FALSE,message=FALSE,fig.align='center',out.width = "75%"}
+df %>% 
+  filter(word == "health") %>% 
+  filter(collocate_number <= 3) %>% 
+  ggplot(aes(x=decade,y=frequency,color=factor(collocate_number))) +
+  geom_line(aes(group=collocate)) +
+  facet_wrap(~word) +
+  theme_classic() +
+  theme(legend.position="none")
+```
+
+<br>
+
+The words that appeared at a frequency higher than 450 are care, public, and mental, with use of the collocate care being the most dramatic increase. I would guess that "health care" was the topic that increased so much in the last 40 years of the data.
+
+```{r warning=FALSE,message=FALSE}
+health_chart <- df %>% 
+  select(word,collocate,frequency,decade) %>% 
+  filter(word == "health") %>% 
+  filter(frequency > 450)
+kable(health_chart, format = "html")
+```
+
+We see a general increase in words surrounding the word health, especially care, public, and mental.
+
+```{r warning=FALSE,message=FALSE}
+health %>% 
+  ggplot(aes(label = collocate, size = avg_frequency)) + 
+  geom_text_wordcloud() +
+  facet_wrap(~ decade_group, ncol = 4) +
+  theme_linedraw()
+```
+
+<br>
+
+## Identity
+
+I included the top ten most frequent collocates in this plot, because, we can see that multiple words that were uncommon historically increased rapidly in 2010s.
+
+```{r warning=FALSE,message=FALSE,fig.align='center',out.width = "75%"}
+df %>% 
+  filter(word == "identity") %>% 
+  filter(collocate_number <= 10) %>% 
+  ggplot(aes(x=decade,y=frequency,color=factor(collocate_number))) +
+  geom_line(aes(group=collocate)) +
+  facet_wrap(~word) +
+  theme_classic() +
+  theme(legend.position="none")
+```
+
+<br>
+
+Shown below are the top ten collocates of the word health and their percent increase from the 1970s to 2010s. Multiple collocate occurrences increased by over a thousand percent.
+
+```{r warning=FALSE,message=FALSE}
+identity_chart <- df %>%
+  filter(word == "identity", collocate_number <= 10) %>% 
+  group_by(collocate) %>%
+  summarize(
+      frequency_1970 = sum(ifelse(decade == 1970, frequency, 0)),
+      frequency_2010 = sum(ifelse(decade == 2010, frequency, 0)),
+      percent_change = ((frequency_2010 - frequency_1970) / frequency_1970) * 100)
+kable(identity_chart, format = "html")
+```
+
+Word clouds also show that several words that had not previously been used in connection to identity were used frequently in the last 5 decades of the data.
+
+```{r warning=FALSE,message=FALSE}
+identity %>% 
+  ggplot(aes(label = collocate, size = avg_frequency)) + 
+  geom_text_wordcloud() +
+  facet_wrap(~ decade_group, ncol = 4) +
+  theme_linedraw()
+```
+
+<br>
+
+## Money
+
+From this plot of the top three collocates for the word money, we can see a sharp increase in the use of all three collocates in the 1930s. I would assume this is related to the Great Depression which marks a stark change in the economy during this time.
+
+```{r warning=FALSE,message=FALSE,fig.align='center',out.width = "75%"}
+df %>% 
+  filter(word == "money") %>% 
+  filter(collocate_number <= 3) %>% 
+  ggplot(aes(x=decade,y=frequency,color=factor(collocate_number))) +
+  geom_line(aes(group=collocate)) +
+  facet_wrap(~word) +
+  theme_classic() +
+  theme(legend.position="none")
+```
+
+<br>
+
+Interestingly, the collocate lot increased in use in 1930 and continued to be used more frequently than any other collocate of the word money.
+
+```{r warning=FALSE,message=FALSE}
+money_chart <- df %>% 
+  select(word,collocate,frequency,decade) %>% 
+  filter(word == "money") %>% 
+  filter(frequency > 250)
+kable(money_chart, format = "html")
+```
+
+<br>
+
+## Conclusion and Future Directions
+
+A general observation I made while working on this project were that English speakers seem to use collective or group terminology more frequently than we used to.
+
+In the future I would like to research more words such as fertility, laws, immigration, pray, national, shopping, tax, home, holiday, men, women, and children. I would also like to look at the timing between changes in word use and society to find out whether there are times when word use precedes societal changes.
+
+<br>

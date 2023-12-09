@@ -1,0 +1,21 @@
+#postamble {
+  background:#425eb8;
+  border-top:solid 10px #547bd6;
+}
+
+.title {
+  text-align: center;
+  color: #425eb8;
+}
+
+h1, h2, h3, h4, h5, h6, legend {
+  color: #fcfdff;
+}
+
+#content h2 {
+background-color: #425eb8;
+  }
+
+.subtitle {
+  color: #425eb8;
+}
